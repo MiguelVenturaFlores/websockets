@@ -13,6 +13,18 @@ class BinanceWebSocket:
         self.symbol = symbol
         self.depth = depth
         self.synced = False
+        self.last_u = None
+        self.lastUpdateId = None
+
+        # initialize websocket
+        websocket.enableTrace(True)        
+        self.ws = websocket.WebSocketApp(
+            f"wss://stream.binance.com:9443/ws/{self.symbol}@depth@100ms/{self.symbol}@trade/{self.symbol}@aggTrade",
+            on_message = lambda ws,msg: self.on_message(ws, msg),
+            on_error   = lambda ws,msg: self.on_error(ws, msg),
+            on_close   = lambda ws:     self.on_close(ws),
+            on_open    = lambda ws:     self.on_open(ws)
+            )
 
         # Initialize data structures
         self.orderbook_updates = []
@@ -37,6 +49,17 @@ class BinanceWebSocket:
         take = f"take_{len(os.listdir(path)) + 1}"
         return f"{path}{take}"
 
+    def get_orderbook(self):
+        now = datetime.datetime.now()
+        timestamp = now.strftime('%H%M%S%f')
+        path = f'{self.orderbook_path}{timestamp}_ob.json'
+        print(f"Getting order book: {timestamp}")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w') as file:
+            response = requests.get(f'https://api.binance.com/api/v3/depth?symbol={self.symbol.upper()}&limit={self.depth}')
+            self.lastUpdateId = response.json()["lastUpdateId"] + 1
+            json.dump(response.json(), file)
+
     def append_data(self, data, data_list, data_type, path_template):
         data_list.append(data)
 
@@ -56,9 +79,10 @@ class BinanceWebSocket:
         if not self.synced:
             now = datetime.datetime.now()
             timestamp = now.strftime('%H%M%S%f')
-            if data["U"] <= self.lastUpdateId <= data["u"]:
+            if (data["U"] <= self.lastUpdateId) & (self.lastUpdateId <= data["u"]):
                 self.synced = True
                 self.last_u = data["u"]
+                self.append_data(data, self.orderbook_updates, "orderbook", self.orderbook_path)
                 print(f"First update event time: {timestamp}")
                 return True
             else:
@@ -94,29 +118,12 @@ class BinanceWebSocket:
 
     def on_close(self, ws):
         print("Connection closed")
+        self.get_orderbook()
         
     def on_open(self, ws):
         print("Connection opened")
-        now = datetime.datetime.now()
-        timestamp = now.strftime('%H%M%S%f')
-        path = f'{self.orderbook_path}{timestamp}_ob.json'
-        print(f"Getting order book: {timestamp}")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w') as file:
-            response = requests.get(f'https://api.binance.com/api/v3/depth?symbol={self.symbol.upper()}&limit={self.depth}')
-            self.lastUpdateId = response.json()["lastUpdateId"] + 1
-            json.dump(response.json(), file)
+        self.get_orderbook()
 
     def run(self):
-        websocket.enableTrace(True)        
-        ws = websocket.WebSocketApp(
-            f"wss://stream.binance.com:9443/ws/{self.symbol}@depth@100ms/{self.symbol}@trade/{self.symbol}@aggTrade",
-            on_message = lambda ws,msg: self.on_message(ws, msg),
-            on_error   = lambda ws,msg: self.on_error(ws, msg),
-            on_close   = lambda ws:     self.on_close(ws),
-            on_open    = lambda ws:     self.on_open(ws)
-            )
-        
-        #ws.on_open = self.on_open
-        ws.run_forever()
+        self.ws.run_forever()
 
