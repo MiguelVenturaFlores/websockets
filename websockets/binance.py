@@ -6,6 +6,7 @@ import requests
 
 UPDATES_PER_FILE = 1024
 PRINT_FREQUENCY = 256
+ORDERBOOK_FREQUENCY = 2
 
 class BinanceWebSocket:
 
@@ -15,6 +16,7 @@ class BinanceWebSocket:
         self.synced = False
         self.last_u = None
         self.lastUpdateId = None
+        self.depth_updates_since_last_ob = 0
 
         # initialize websocket
         websocket.enableTrace(True)        
@@ -75,6 +77,12 @@ class BinanceWebSocket:
                 json.dump(data_list, file)
             data_list.clear()
 
+            if data_type == "orderbook":
+                self.depth_updates_since_last_ob += 1
+                if self.depth_updates_since_last_ob == ORDERBOOK_FREQUENCY:
+                    self.depth_updates_since_last_ob = 0
+                    self.get_orderbook()
+
     def append_update(self, data):
         if not self.synced:
             now = datetime.datetime.now()
@@ -118,7 +126,6 @@ class BinanceWebSocket:
 
     def on_close(self, ws):
         print("Connection closed")
-        self.get_orderbook()
         
     def on_open(self, ws):
         print("Connection opened")
