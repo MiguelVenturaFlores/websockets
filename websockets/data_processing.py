@@ -100,7 +100,7 @@ def get_processed_orderbook(path, depth):
 def process_data(depth, pair, date, base_path="."):
 
     # define input path
-    input_path = f"{base_path}/data/{pair}/{date}"
+    input_path = f"{base_path}/raw_data/{pair}/{date}"
 
     # define output path
     output_path = f"{base_path}/preprocessed_data/{pair}/{date}/orderbook"

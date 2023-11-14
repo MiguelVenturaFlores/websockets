@@ -46,7 +46,7 @@ class BinanceWebSocket:
     def get_path(self):
         now = datetime.datetime.now()
         date = now.strftime('%Y%m%d')
-        path = f'data/{self.symbol}/{date}/'
+        path = f'raw_data/{self.symbol}/{date}/'
         os.makedirs(path, exist_ok=True)
         take = f"take_{len(os.listdir(path)) + 1}"
         return f"{path}{take}"
@@ -59,6 +59,7 @@ class BinanceWebSocket:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w') as file:
             response = requests.get(f'https://api.binance.com/api/v3/depth?symbol={self.symbol.upper()}&limit={self.depth}')
+            print(response)
             self.lastUpdateId = response.json()["lastUpdateId"] + 1
             json.dump(response.json(), file)
 
