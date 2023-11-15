@@ -6,7 +6,7 @@ import requests
 
 UPDATES_PER_FILE = 1024
 PRINT_FREQUENCY = 256
-ORDERBOOK_FREQUENCY = 2
+ORDERBOOK_FREQUENCY = 30
 
 class BinanceWebSocket:
 
