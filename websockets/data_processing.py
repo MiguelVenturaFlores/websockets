@@ -69,11 +69,6 @@ def update_orderbook(updates, orderbook):
     return orderbook
 
 # create and update pandas dataframe
-def get_processed_orderbook(rows, depth):
-    columns = get_columns(depth)
-    df = pd.DataFrame(rows, columns=columns)
-    return df
-
 def get_columns(depth):
     column_generator = lambda side : [col for cols in [[f"{side}{i+1}", f"v{side}{i+1}"] for i in range(depth)] for col in cols]
     columns = ["u"] + ["E"] + column_generator("b") + column_generator("a")
@@ -145,7 +140,7 @@ def get_snapshots(path, depth):
     return snapshots
 
 def compare_orderbook(true_ob, computed_ob):
-
+    
     # intersect values of u found on both dataframmes
     A = true_ob["u"].tolist()
     B = computed_ob[computed_ob["u"].isin(A)]["u"].tolist()
@@ -167,3 +162,70 @@ def compare_orderbook(true_ob, computed_ob):
     else:
         print(f"Dataframes not equal. Showing differences:")
         print(diff)
+
+# process trades
+def get_columns_trades():
+    return ["E", "t", "p", "q", "T", "m"]
+
+def get_updates_trades(updates_file):
+
+    # get data from file
+    with open(updates_file, mode='r') as f:
+        updates_raw = json.load(f)
+
+    # parse all updates
+    updates = []
+    for u in updates_raw:
+        updates.append([
+            int(u["E"]),
+            int(u["t"]),
+            float(u["p"]),
+            float(u["q"]),
+            int(u["T"]),
+            bool(u["m"])
+            ])
+
+    return updates
+
+def get_processed_trades(path):
+
+    # initialize orderbook
+    _, updates_files = get_files(path)
+    print(f"Total updates files= {len(updates_files)}")
+
+    # initialize df
+    columns = get_columns_trades()
+    df = pd.DataFrame(np.zeros((len(updates_files)*1024, len(columns))), columns=columns)
+
+    # add all updates
+    i = 0
+    for file in tqdm(updates_files):
+        updates = get_updates_trades(file)
+        for u in updates:
+            df.iloc[i] = u
+            i+=1
+
+    return df
+
+def process_trades(pair, date, base_path=".", trades="trades"):
+
+    # define input path
+    input_path = f"{base_path}/raw_data/{pair}/{date}"
+
+    # define output path
+    output_path = f"{base_path}/preprocessed_data/{pair}/{date}/{trades}"
+    Path(output_path).mkdir(parents=True, exist_ok=True)
+
+    # get all takes paths
+    takes = [x[0] for x in os.walk(input_path) if len(x[0].split("/")) == (len(input_path.split("/")) + 1)]
+
+    # store data for each take
+    for take_path in takes:
+
+        t = take_path.split("/")[-1]
+        print(f"Processing {t}...")
+        path = f"{take_path}/{trades}/"
+        trades = get_processed_trades(path)
+
+        print("Processing finished. Storing csv...")
+        trades.to_csv(f"{output_path}/{t}.csv")
