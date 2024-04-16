@@ -16,18 +16,24 @@ if __name__ == "__main__":
     # input
     depth = 5
     base_path = "."
-    date = "20231115"
+    DATES = ["20231115", "20231116", "20231117"]
 
-    for pair in PAIRS:
+    for date in DATES:
 
-        print(f"\n\nProcessing pair {pair}...")
+        for pair in PAIRS:
 
-        # process data
-        process_data(depth, pair, date, base_path)
+            print(f"\n\nProcessing pair {pair}...")
 
-        # validate data
-        snapshots_path = f"raw_data/{pair}/{date}/take_1/orderbook/"
-        true_ob = get_snapshots(snapshots_path, depth)
-        ob_path = f"preprocessed_data/{pair}/{date}/orderbook/take_1.csv"
-        computed_ob = pd.read_csv(ob_path).drop(columns=["Unnamed: 0"])
-        compare_orderbook(true_ob, computed_ob)
+            # process LOB
+            process_data(depth, pair, date, base_path)
+
+            # validate LOB
+            snapshots_path = f"raw_data/{pair}/{date}/take_1/orderbook/"
+            true_ob = get_snapshots(snapshots_path, depth)
+            ob_path = f"preprocessed_data/{pair}/{date}/orderbook/take_1.csv"
+            computed_ob = pd.read_csv(ob_path).drop(columns=["Unnamed: 0"])
+            compare_orderbook(true_ob, computed_ob)
+
+            # process trades
+            process_trades(pair, date, base_path=".", trades="aggTrades")
+            process_trades(pair, date, base_path=".", trades="trades")

@@ -164,10 +164,13 @@ def compare_orderbook(true_ob, computed_ob):
         print(diff)
 
 # process trades
-def get_columns_trades():
-    return ["E", "t", "p", "q", "T", "m"]
+def get_columns_trades(trades):
+    if trades == "trades":
+        return ["E", "t", "p", "q", "T", "m"]
+    elif trades == "aggTrades":
+        return ["E", "a", "p", "q", "f", "l", "T", "m"]
 
-def get_updates_trades(updates_file):
+def get_updates_trades(updates_file, trades):
 
     # get data from file
     with open(updates_file, mode='r') as f:
@@ -176,31 +179,45 @@ def get_updates_trades(updates_file):
     # parse all updates
     updates = []
     for u in updates_raw:
-        updates.append([
-            int(u["E"]),
-            int(u["t"]),
-            float(u["p"]),
-            float(u["q"]),
-            int(u["T"]),
-            bool(u["m"])
-            ])
 
+        if trades == "trades":
+            updates.append([
+                int(u["E"]),
+                int(u["t"]),
+                float(u["p"]),
+                float(u["q"]),
+                int(u["T"]),
+                bool(u["m"])
+                ])
+            
+        elif trades == "aggTrades":
+            updates.append([
+                int(u["E"]),
+                int(u["a"]),
+                float(u["p"]),
+                float(u["q"]),
+                int(u["f"]),
+                int(u["l"]),
+                int(u["T"]),
+                bool(u["m"])
+                ])
+            
     return updates
 
-def get_processed_trades(path):
+def get_processed_trades(path, trades):
 
     # initialize orderbook
     _, updates_files = get_files(path)
     print(f"Total updates files= {len(updates_files)}")
 
     # initialize df
-    columns = get_columns_trades()
+    columns = get_columns_trades(trades)
     df = pd.DataFrame(np.zeros((len(updates_files)*1024, len(columns))), columns=columns)
 
     # add all updates
     i = 0
     for file in tqdm(updates_files):
-        updates = get_updates_trades(file)
+        updates = get_updates_trades(file, trades)
         for u in updates:
             df.iloc[i] = u
             i+=1
@@ -225,7 +242,7 @@ def process_trades(pair, date, base_path=".", trades="trades"):
         t = take_path.split("/")[-1]
         print(f"Processing {t}...")
         path = f"{take_path}/{trades}/"
-        trades = get_processed_trades(path)
+        trades = get_processed_trades(path, trades)
 
         print("Processing finished. Storing csv...")
         trades.to_csv(f"{output_path}/{t}.csv")
